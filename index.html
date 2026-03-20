@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Curve Fever</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0a;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        canvas {
+            border: 2px solid #444;
+            border-radius: 4px;
+        }
+        #sidebar {
+            width: 260px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .panel {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .panel h2 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 15px;
+        }
+        .score-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .score-name {
+            display: flex;
+            align-items: center;
+        }
+        .score-points {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        #menu {
+            text-align: center;
+        }
+        #menu h1 {
+            font-size: 42px;
+            margin-bottom: 8px;
+            background: linear-gradient(90deg, #ff4444, #ffaa00, #44ff44, #4488ff, #ff44ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        #menu p {
+            color: #888;
+            margin-bottom: 20px;
+        }
+        .player-setup {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #222;
+        }
+        .player-setup .name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .player-setup .keys {
+            color: #888;
+            font-size: 13px;
+        }
+        .toggle-btn {
+            background: #333;
+            border: none;
+            color: #888;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .toggle-btn.active {
+            background: #2a5a2a;
+            color: #6f6;
+        }
+        #start-btn {
+            margin-top: 16px;
+            background: #2a6a2a;
+            border: none;
+            color: #fff;
+            padding: 12px 32px;
+            border-radius: 6px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #start-btn:hover { background: #3a8a3a; }
+        .controls-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+        #round-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255,255,255,0.5);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #round-msg.show { opacity: 1; }
+        .winner-banner {
+            font-size: 28px;
+            text-align: center;
+            padding: 20px;
+            color: #ffd700;
+        }
+        kbd {
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="menu" class="panel" style="width: 540px;">
+            <h1>Curve Fever</h1>
+            <p>Survive the longest! Avoid walls and trails.</p>
+            <div id="player-list"></div>
+            <button id="start-btn">Start Game</button>
+            <div class="controls-info">
+                Press <kbd>Space</kbd> during game to start next round. Press <kbd>Esc</kbd> to return to menu.
+            </div>
+        </div>
+        <canvas id="arena" style="display:none;"></canvas>
+        <div id="sidebar" style="display:none;">
+            <div class="panel">
+                <h2>Scoreboard</h2>
+                <div id="scoreboard"></div>
+            </div>
+            <div class="panel">
+                <h2>Controls</h2>
+                <div id="controls-list"></div>
+            </div>
+            <div class="panel controls-info">
+                <kbd>Space</kbd> Next round &nbsp; <kbd>Esc</kbd> Menu<br>
+                First to <span id="target-score">10</span> points wins!
+            </div>
+        </div>
+        <div id="round-msg"></div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
