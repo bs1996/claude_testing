@@ -10,6 +10,7 @@
     const GAP_INTERVAL_MIN = 80;
     const GAP_INTERVAL_MAX = 200;
     const GAP_LENGTH = 8;
+    const TRAIL_DELAY = 5; // frames before trail becomes solid
     const COUNTDOWN_SECONDS = 3;
 
     const PLAYER_DEFS = [
@@ -170,6 +171,7 @@
             p.gapTimer = GAP_INTERVAL_MIN + Math.random() * (GAP_INTERVAL_MAX - GAP_INTERVAL_MIN);
             p.gapCounter = 0;
             p.inGap = false;
+            p.trailBuffer = []; // delayed collision marking
         });
 
         // Clear canvas
@@ -266,9 +268,14 @@
                     ctx.fill();
                     return;
                 }
-                // Draw trail and mark collision map
+                // Draw trail visually immediately
                 drawTrail(p.x, p.y, newX, newY, p.color);
-                markCollision(newX, newY);
+                // Buffer the position — only mark as solid after TRAIL_DELAY frames
+                p.trailBuffer.push({ x: newX, y: newY });
+                if (p.trailBuffer.length > TRAIL_DELAY) {
+                    const old = p.trailBuffer.shift();
+                    markCollision(old.x, old.y);
+                }
             }
 
             p.x = newX;
