@@ -222,7 +222,7 @@
                 roundActive = true;
                 lastFrameTime = null;
                 if (animFrameId) cancelAnimationFrame(animFrameId);
-                gameLoop();
+                animFrameId = requestAnimationFrame(gameLoop);
             }
         }, 1000);
     }
