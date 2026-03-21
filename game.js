@@ -5,12 +5,13 @@
     const ARENA_W = 800;
     const ARENA_H = 600;
     const LINE_WIDTH = 3;
-    const SPEED = 2;
-    const TURN_RATE = 0.05;
-    const GAP_INTERVAL_MIN = 80;
-    const GAP_INTERVAL_MAX = 200;
-    const GAP_LENGTH = 8;
-    const TRAIL_DELAY = 5; // frames before trail becomes solid
+    const SPEED = 120; // pixels per second (was 2px/frame at 60fps)
+    const TURN_RATE = 3; // radians per second (was 0.05/frame at 60fps)
+    const GAP_INTERVAL_MIN = 1.33; // seconds (was 80 frames at 60fps)
+    const GAP_INTERVAL_MAX = 3.33; // seconds (was 200 frames at 60fps)
+    const GAP_LENGTH = 0.133; // seconds (was 8 frames at 60fps)
+    const MIN_SPAWN_DIST = 80; // minimum distance between spawning players
+    const TRAIL_DELAY = 0.083; // seconds before trail becomes solid (was 5 frames at 60fps)
     const COUNTDOWN_SECONDS = 3;
 
     const PLAYER_DEFS = [
@@ -51,6 +52,8 @@
     let gameRunning = false;
     let roundActive = false;
     let animFrameId = null;
+    let countdownId = null;
+    let lastFrameTime = null;
     let matchOver = false;
     let targetScore = 10;
 
@@ -153,6 +156,7 @@
         roundActive = false;
         if (animFrameId) cancelAnimationFrame(animFrameId);
         animFrameId = null;
+        if (countdownId) { clearInterval(countdownId); countdownId = null; }
     }
 
     function startRound() {
@@ -162,14 +166,25 @@
         // Reset collision map
         collisionMap = new Uint8Array(ARENA_W * ARENA_H);
 
-        // Reset players
+        // Reset players with minimum spawn distance
+        const spawnPositions = [];
         players.forEach(p => {
             p.alive = true;
-            p.x = 100 + Math.random() * (ARENA_W - 200);
-            p.y = 100 + Math.random() * (ARENA_H - 200);
+            let x, y, attempts = 0;
+            do {
+                x = 100 + Math.random() * (ARENA_W - 200);
+                y = 100 + Math.random() * (ARENA_H - 200);
+                attempts++;
+            } while (
+                attempts < 100 &&
+                spawnPositions.some(pos => Math.hypot(pos.x - x, pos.y - y) < MIN_SPAWN_DIST)
+            );
+            spawnPositions.push({ x, y });
+            p.x = x;
+            p.y = y;
             p.angle = Math.random() * Math.PI * 2;
             p.gapTimer = GAP_INTERVAL_MIN + Math.random() * (GAP_INTERVAL_MAX - GAP_INTERVAL_MIN);
-            p.gapCounter = 0;
+            p.gapElapsed = 0;
             p.inGap = false;
             p.trailBuffer = []; // delayed collision marking
         });
@@ -196,28 +211,34 @@
         // Countdown
         let count = COUNTDOWN_SECONDS;
         showRoundMessage(count);
-        const countInterval = setInterval(() => {
+        countdownId = setInterval(() => {
             count--;
             if (count > 0) {
                 showRoundMessage(count);
             } else {
-                clearInterval(countInterval);
+                clearInterval(countdownId);
+                countdownId = null;
                 hideRoundMessage();
                 roundActive = true;
+                lastFrameTime = null;
                 if (animFrameId) cancelAnimationFrame(animFrameId);
                 gameLoop();
             }
         }, 1000);
     }
 
-    function gameLoop() {
+    function gameLoop(timestamp) {
         if (!roundActive || !gameRunning) return;
 
-        update();
+        if (lastFrameTime === null) lastFrameTime = timestamp;
+        const dt = Math.min((timestamp - lastFrameTime) / 1000, 0.05); // cap at 50ms
+        lastFrameTime = timestamp;
+
+        update(dt);
         animFrameId = requestAnimationFrame(gameLoop);
     }
 
-    function update() {
+    function update(dt) {
         const alivePlayers = players.filter(p => p.alive);
 
         if (alivePlayers.length <= 1) {
@@ -230,25 +251,25 @@
             if (!p.alive) return;
 
             // Steering
-            if (keysDown[p.leftKey]) p.angle -= TURN_RATE;
-            if (keysDown[p.rightKey]) p.angle += TURN_RATE;
+            if (keysDown[p.leftKey]) p.angle -= TURN_RATE * dt;
+            if (keysDown[p.rightKey]) p.angle += TURN_RATE * dt;
 
             // Move
-            const newX = p.x + Math.cos(p.angle) * SPEED;
-            const newY = p.y + Math.sin(p.angle) * SPEED;
+            const newX = p.x + Math.cos(p.angle) * SPEED * dt;
+            const newY = p.y + Math.sin(p.angle) * SPEED * dt;
 
             // Gap logic
-            p.gapCounter++;
+            p.gapElapsed += dt;
             if (p.inGap) {
-                if (p.gapCounter >= GAP_LENGTH) {
+                if (p.gapElapsed >= GAP_LENGTH) {
                     p.inGap = false;
-                    p.gapCounter = 0;
+                    p.gapElapsed = 0;
                     p.gapTimer = GAP_INTERVAL_MIN + Math.random() * (GAP_INTERVAL_MAX - GAP_INTERVAL_MIN);
                 }
             } else {
-                if (p.gapCounter >= p.gapTimer) {
+                if (p.gapElapsed >= p.gapTimer) {
                     p.inGap = true;
-                    p.gapCounter = 0;
+                    p.gapElapsed = 0;
                 }
             }
 
@@ -270,9 +291,10 @@
                 }
                 // Draw trail visually immediately
                 drawTrail(p.x, p.y, newX, newY, p.color);
-                // Buffer the position — only mark as solid after TRAIL_DELAY frames
-                p.trailBuffer.push({ x: newX, y: newY });
-                if (p.trailBuffer.length > TRAIL_DELAY) {
+                // Buffer the position — only mark as solid after TRAIL_DELAY seconds
+                const now = performance.now() / 1000;
+                p.trailBuffer.push({ x: newX, y: newY, t: now });
+                while (p.trailBuffer.length > 0 && now - p.trailBuffer[0].t >= TRAIL_DELAY) {
                     const old = p.trailBuffer.shift();
                     markCollision(old.x, old.y);
                 }
